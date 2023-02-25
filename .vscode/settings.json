@@ -1,0 +1,9 @@
+{
+    "editor.formatOnSave": true,
+    "cSpell.words": [
+        "framebuffer",
+        "glmutils",
+        "renderlib",
+        "tungstenite"
+    ]
+}

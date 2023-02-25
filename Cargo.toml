@@ -1,0 +1,23 @@
+[package]
+name = "cad_viewer"
+version = "0.1.0"
+readme = "README.md"
+license = "MIT"
+authors = ["sraesch"]
+
+description = "A simple CAD viewer for visualizing 3D/CAD data based on cad_import."
+documentation = "https://docs.rs/cad_viewer/"
+repository = "https://github.com/sraesch/cad_viewer"
+
+keywords = ["3D", "CAD", "import", "model", "scene", "viewer"]
+categories = ["rendering"]
+
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0"
+nalgebra-glm = "0.3"
+log = "0.4"
+cad_import = "0.2"
+simple-logging = "2.0"
+exitcode = "1.1"
