@@ -11,7 +11,7 @@ mod viewer;
 
 /// Initializes the program logging
 fn initialize_logging() {
-    simple_logging::log_to(std::io::stdout(), LevelFilter::Info);
+    simple_logging::log_to(std::io::stdout(), LevelFilter::Debug);
 }
 
 /// Prints the usage of the program
