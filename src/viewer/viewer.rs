@@ -1,5 +1,5 @@
 use anyhow::Result;
-use glow::Context;
+use glow::{Context, HasContext};
 use glutin::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -20,18 +20,18 @@ pub struct ContextConfig {
 }
 
 /// The trait for the viewer controller
-pub trait ViewerController {
+pub trait ViewerController<C: HasContext> {
     /// Initialize call to allocate all OpenGL resource
-    fn initialize(&mut self, context: &Context, config: ContextConfig) -> Result<()>;
+    fn initialize(&mut self, context: &C, config: ContextConfig) -> Result<()>;
 
     /// Draws a single frame
-    fn draw(&mut self, context: &Context);
+    fn draw(&mut self, context: &C);
 
     /// Resize update of the frame
-    fn resize(&mut self, context: &Context, width: u32, height: u32);
+    fn resize(&mut self, context: &C, width: u32, height: u32);
 
     /// Final cleanup call to remove all GL resources.
-    fn cleanup(&mut self, context: &Context);
+    fn cleanup(&mut self, context: &C);
 }
 
 /// The 3D viewer component
@@ -46,7 +46,7 @@ where
     context_config: ContextConfig,
 }
 
-impl<C: ViewerController> Viewer<C> {
+impl<C: ViewerController<Context>> Viewer<C> {
     /// Creates and returns a new viewer with the given title.
     pub fn new(title: &str, controller: C) -> Result<Self> {
         let width: u32 = 1024;

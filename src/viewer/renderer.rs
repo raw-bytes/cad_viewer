@@ -2,23 +2,28 @@ use std::path::{Path, PathBuf};
 
 use crate::gl_call;
 
-use super::viewer::{ContextConfig, ViewerController};
+use super::{
+    shader::Shader,
+    viewer::{ContextConfig, ViewerController},
+};
 
-use glow::{Context, HasContext};
+use glow::HasContext;
 
 use log::{debug, info, trace};
 
-pub struct Renderer {
+pub struct Renderer<C: HasContext> {
     input_file: PathBuf,
+    shader: Option<Shader<C>>,
     shader_version: String,
     width: u32,
     height: u32,
 }
 
-impl Renderer {
+impl<C: HasContext> Renderer<C> {
     pub fn new(input_file: &Path) -> Self {
         Self {
             input_file: input_file.to_owned(),
+            shader: None,
             shader_version: String::new(),
             width: 0,
             height: 0,
@@ -26,22 +31,21 @@ impl Renderer {
     }
 }
 
-impl ViewerController for Renderer {
-    fn initialize(
-        &mut self,
-        context: &Context,
-        context_config: ContextConfig,
-    ) -> anyhow::Result<()> {
+impl<C: HasContext> ViewerController<C> for Renderer<C> {
+    fn initialize(&mut self, context: &C, context_config: ContextConfig) -> anyhow::Result<()> {
+        info!("Initialize Renderer...");
+
         self.shader_version = context_config.shader_version;
         self.width = context_config.width;
         self.height = context_config.height;
 
-        info!("Initialize renderer...");
         info!("Shader Version: {}", self.shader_version);
+        self.shader = Some(Shader::new(context, &self.shader_version)?);
+
         Ok(())
     }
 
-    fn draw(&mut self, context: &Context) {
+    fn draw(&mut self, context: &C) {
         trace!("Draw");
         gl_call!(
             context,
@@ -52,12 +56,31 @@ impl ViewerController for Renderer {
             self.height as i32
         );
         gl_call!(context, clear_color, 0.2, 0.2, 1.0, 1.0);
-        gl_call!(context, clear, glow::COLOR_BUFFER_BIT);
+        gl_call!(
+            context,
+            clear,
+            glow::COLOR_BUFFER_BIT | glow::DEPTH_BUFFER_BIT
+        );
+
+        match &self.shader {
+            Some(shader) => {
+                shader.bind(context);
+            }
+            None => {}
+        }
+
+        gl_call!(context, use_program, None);
     }
 
-    fn cleanup(&mut self, context: &Context) {}
+    fn cleanup(&mut self, context: &C) {
+        info!("Clean up...");
+        match &mut self.shader {
+            Some(s) => s.cleanup(context),
+            _ => {}
+        }
+    }
 
-    fn resize(&mut self, _context: &Context, width: u32, height: u32) {
+    fn resize(&mut self, _context: &C, width: u32, height: u32) {
         debug!("resize ({}, {})", width, height);
 
         self.width = width;

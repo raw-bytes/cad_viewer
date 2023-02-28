@@ -23,7 +23,7 @@ fn print_usage() {
 /// The central entry point for starting the program
 fn run_program(args: Arguments) -> Result<()> {
     let renderer = Renderer::new(&args.input_file);
-    let mut viewer =
+    let viewer =
         Viewer::new("Simple CAD Viewer", renderer).context("Failed initializing the viewer")?;
 
     info!("Start viewer...");

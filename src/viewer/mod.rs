@@ -1,4 +1,5 @@
 mod renderer;
+mod shader;
 mod viewer;
 
 pub mod gl_call;

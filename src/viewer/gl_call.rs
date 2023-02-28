@@ -1,6 +1,6 @@
 use glow::{
-    Context, HasContext, INVALID_ENUM, INVALID_FRAMEBUFFER_OPERATION, INVALID_INDEX,
-    INVALID_OPERATION, INVALID_VALUE, NO_ERROR, OUT_OF_MEMORY, STACK_OVERFLOW, STACK_UNDERFLOW,
+    HasContext, INVALID_ENUM, INVALID_FRAMEBUFFER_OPERATION, INVALID_INDEX, INVALID_OPERATION,
+    INVALID_VALUE, NO_ERROR, OUT_OF_MEMORY, STACK_OVERFLOW, STACK_UNDERFLOW,
 };
 
 use log::error;
@@ -32,7 +32,7 @@ fn code_to_string(error_code: u32) -> &'static str {
 /// * `filename` - The source filename where the error was caused
 /// * `line` - The line in the source filename where the error was caused
 /// * `column` - The column in the source filename where the error was caused
-pub fn check(context: &Context, filename: &str, line: u32, column: u32) {
+pub fn check<C: HasContext>(context: &C, filename: &str, line: u32, column: u32) {
     let error_code = unsafe { context.get_error() };
 
     if error_code != NO_ERROR {
@@ -55,7 +55,13 @@ pub fn check(context: &Context, filename: &str, line: u32, column: u32) {
 /// * `line` - The line in the source code file
 /// * `column` - Then column in the source code file
 #[inline]
-pub fn gl_call_helper<T>(t: T, context: &Context, filename: &str, line: u32, column: u32) -> T {
+pub fn gl_call_helper<T, C: HasContext>(
+    t: T,
+    context: &C,
+    filename: &str,
+    line: u32,
+    column: u32,
+) -> T {
     check(context, filename, line, column);
 
     t
@@ -67,6 +73,16 @@ macro_rules! gl_call {
     ($ctx:ident, $function:ident, $($params:tt)*) => {
         $crate::viewer::gl_call::gl_call_helper(
             unsafe { $ctx.$function($($params)*) },
+            $ctx,
+            file!(),
+            line!(),
+            column!(),
+        )
+    };
+
+    ($ctx:ident, $function:ident) => {
+        $crate::viewer::gl_call::gl_call_helper(
+            unsafe { $ctx.$function() },
             $ctx,
             file!(),
             line!(),
