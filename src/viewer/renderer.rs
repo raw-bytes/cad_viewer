@@ -1,5 +1,3 @@
-use std::path::{Path, PathBuf};
-
 use crate::gl_call;
 
 use super::{
@@ -7,12 +5,12 @@ use super::{
     viewer::{ContextConfig, ViewerController},
 };
 
+use cad_import::structure::CADData;
 use glow::HasContext;
 
 use log::{debug, info, trace};
 
 pub struct Renderer<C: HasContext> {
-    input_file: PathBuf,
     shader: Option<Shader<C>>,
     shader_version: String,
     width: u32,
@@ -20,9 +18,8 @@ pub struct Renderer<C: HasContext> {
 }
 
 impl<C: HasContext> Renderer<C> {
-    pub fn new(input_file: &Path) -> Self {
+    pub fn new(cad_data: CADData) -> Self {
         Self {
-            input_file: input_file.to_owned(),
             shader: None,
             shader_version: String::new(),
             width: 0,
