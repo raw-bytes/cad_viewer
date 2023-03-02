@@ -9,6 +9,7 @@ use crate::viewer::Renderer;
 
 mod args;
 mod viewer;
+mod gpu_data;
 
 /// Initializes the program logging
 fn initialize_logging() {
