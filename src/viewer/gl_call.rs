@@ -1,3 +1,4 @@
+use anyhow::bail;
 use glow::{
     HasContext, INVALID_ENUM, INVALID_FRAMEBUFFER_OPERATION, INVALID_INDEX, INVALID_OPERATION,
     INVALID_VALUE, NO_ERROR, OUT_OF_MEMORY, STACK_OVERFLOW, STACK_UNDERFLOW,
@@ -65,6 +66,19 @@ pub fn gl_call_helper<T, C: HasContext>(
     check(context, filename, line, column);
 
     t
+}
+
+/// Transforms the given GLOW error into an anyhow error.
+///
+/// # Arguments
+/// * `result` - The GLOW result to transform into an anyhow error.
+pub fn handle_glow_error<T>(result: Result<T, String>) -> anyhow::Result<T> {
+    match result {
+        Ok(r) => Ok(r),
+        Err(err) => {
+            bail!(err);
+        }
+    }
 }
 
 /// Encapsulates an OpenGL function call and performs internal checks and OpenGL call counting

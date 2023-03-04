@@ -1,3 +1,6 @@
+mod bbox;
+mod camera;
+mod camera_data;
 mod renderer;
 mod shader;
 mod viewer;

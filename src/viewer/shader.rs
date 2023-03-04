@@ -1,11 +1,18 @@
 use anyhow::bail;
+use cad_import::structure::Material;
 use glow::HasContext;
 use log::debug;
+use nalgebra_glm::{Mat3, Mat4};
 
 use crate::gl_call;
 
 pub struct Shader<C: HasContext> {
     program: Option<C::Program>,
+    uniform_combined_mat: C::UniformLocation,
+    uniform_model_mat: C::UniformLocation,
+    uniform_normal_mat: C::UniformLocation,
+    uniform_diffuse_color: C::UniformLocation,
+    uniform_normals_enabled: C::UniformLocation,
 }
 
 impl<C: HasContext> Shader<C> {
@@ -78,9 +85,117 @@ impl<C: HasContext> Shader<C> {
             gl_call!(context, delete_shader, shader);
         }
 
+        // find uniform shader variables
+        let uniform_combined_mat = Self::get_uniform_location(context, program, "combinedMat")?;
+        let uniform_model_mat = Self::get_uniform_location(context, program, "modelMat")?;
+        let uniform_normal_mat = Self::get_uniform_location(context, program, "normalMat")?;
+        let uniform_diffuse_color = Self::get_uniform_location(context, program, "diffuseColor")?;
+        let uniform_normals_enabled =
+            Self::get_uniform_location(context, program, "normalsEnabled")?;
+
         Ok(Shader {
             program: Some(program),
+            uniform_combined_mat,
+            uniform_model_mat,
+            uniform_normal_mat,
+            uniform_diffuse_color,
+            uniform_normals_enabled,
         })
+    }
+
+    /// Tries to find the specified uniform variable.
+    fn get_uniform_location(
+        context: &C,
+        program: C::Program,
+        name: &str,
+    ) -> anyhow::Result<C::UniformLocation> {
+        match gl_call!(context, get_uniform_location, program, name) {
+            Some(l) => Ok(l),
+            None => {
+                bail!("Could not find uniform variable {}", name);
+            }
+        }
+    }
+
+    /// Sets the matrices for the shader uniform variables.
+    ///
+    /// # Arguments
+    /// * `context` - The GLOW context.
+    /// * `model_mat` - The multiplied projection and model view matrix.
+    /// * `combined_mat` - The multiplied projection and model view matrix.
+    /// * `normal_mat` - The normal matrix.
+    pub fn set_matrices(
+        &self,
+        context: &C,
+        model_mat: &Mat4,
+        combined_mat: &Mat4,
+        normal_mat: &Mat3,
+    ) {
+        gl_call!(
+            context,
+            uniform_matrix_4_f32_slice,
+            Some(&self.uniform_model_mat),
+            false,
+            model_mat.as_slice()
+        );
+
+        gl_call!(
+            context,
+            uniform_matrix_4_f32_slice,
+            Some(&self.uniform_combined_mat),
+            false,
+            combined_mat.as_slice()
+        );
+
+        gl_call!(
+            context,
+            uniform_matrix_3_f32_slice,
+            Some(&self.uniform_normal_mat),
+            false,
+            normal_mat.as_slice()
+        );
+    }
+
+    /// Sets uniform variable for the given material.
+    ///
+    /// # Arguments
+    /// * `context` - The GLOW context.
+    /// * `material` - The material data to set.
+    pub fn set_material(&self, context: &C, material: &Material) {
+        match material {
+            Material::PhongMaterial(p) => {
+                gl_call!(
+                    context,
+                    uniform_3_f32_slice,
+                    Some(&self.uniform_diffuse_color),
+                    p.diffuse_color.0.as_slice()
+                );
+            }
+            Material::None => {
+                gl_call!(
+                    context,
+                    uniform_3_f32,
+                    Some(&self.uniform_diffuse_color),
+                    0.8f32,
+                    0.8f32,
+                    0.8f32
+                );
+            }
+        }
+    }
+
+    /// Sets which attributes are defined for the next draw-call.
+    ///
+    /// # Arguments
+    /// * `context` - The GLOW context.
+    /// * `normals_enabled` - This flag indicates if normals are available.
+    pub fn set_attributes(&self, context: &C, normals_enabled: bool) {
+        gl_call!(
+            context,
+            uniform_1_i32,
+            Some(&self.uniform_normals_enabled),
+            if normals_enabled { 1 } else { 0 }
+        );
     }
 
     /// Binds the shader program to the given context.
