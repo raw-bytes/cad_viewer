@@ -151,7 +151,12 @@ impl<C: HasContext> ViewerController<C> for Renderer<C> {
             let normal_mat = Self::compute_normal_matrix(&(model_view_matrix * instance.transform));
             let final_combined_mat = combined_mat * instance.transform;
 
-            shader.set_matrices(context, &final_combined_mat, &normal_mat);
+            shader.set_matrices(
+                context,
+                &model_view_matrix,
+                &final_combined_mat,
+                &normal_mat,
+            );
 
             let shape = &self.gpu_data.get_shapes()[instance.shape_index];
 

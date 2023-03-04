@@ -11,6 +11,7 @@ layout(location = 1) in vec3 inNormal;
 //------------------------------------------
 
 uniform mat4 combinedMat;
+uniform mat4 modelMat;
 uniform mat3 normalMat;
 
 //------------------------------------------
@@ -29,9 +30,11 @@ void main() {
     vec3 normal = inNormal;
     varNormal = normalMat * normal;
 
+    // apply model view matrix
+    varPos = vec3(modelMat * vec4(inPosition, 1.0));
+
     // project 
     vec4 ppos = combinedMat * vec4(inPosition, 1.0);
-    varPos = vec3(ppos);
 
     // transform vertex position
     gl_Position = ppos;
