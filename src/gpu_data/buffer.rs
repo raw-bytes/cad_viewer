@@ -33,7 +33,7 @@ impl<C: HasContext, const TARGET: u32> Buffer<C, TARGET> {
         let num_bytes = data.len() * std::mem::size_of::<T>();
         let data = unsafe { std::slice::from_raw_parts(data.as_ptr() as *const u8, num_bytes) };
 
-        gl_call!(context, bind_buffer, TARGET, Some(self.buffer));
+        self.bind(context);
         gl_call!(context, buffer_data_u8_slice, TARGET, data, usage as u32);
     }
 

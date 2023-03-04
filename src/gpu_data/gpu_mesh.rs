@@ -69,6 +69,11 @@ impl<C: HasContext> GPUMesh<C> {
         gl_call!(context, bind_vertex_array, None);
     }
 
+    /// Returns true if normals are defined
+    pub fn has_normals(&self) -> bool {
+        self.vertices.normal.is_some()
+    }
+
     /// Translates the given cad_import primitive type to glow primitive type.
     ///
     /// # Arguments
@@ -141,8 +146,8 @@ impl<C: HasContext> GPUMesh<C> {
         gl_call!(context, bind_vertex_array, Some(vertex_array));
 
         // positions
-        gl_call!(context, enable_vertex_attrib_array, 0);
         attributes.position.bind(context);
+        gl_call!(context, enable_vertex_attrib_array, 0);
         gl_call!(
             context,
             vertex_attrib_pointer_f32,
@@ -150,7 +155,7 @@ impl<C: HasContext> GPUMesh<C> {
             3,
             glow::FLOAT,
             false,
-            6,
+            0,
             0
         );
 
@@ -166,7 +171,7 @@ impl<C: HasContext> GPUMesh<C> {
                     3,
                     glow::FLOAT,
                     false,
-                    6,
+                    0,
                     0
                 );
             }

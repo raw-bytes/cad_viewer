@@ -1,7 +1,8 @@
 use anyhow::Result;
 use glow::{Context, HasContext};
 use glutin::{
-    event::{Event, WindowEvent},
+    dpi::LogicalPosition,
+    event::{ElementState, Event, MouseButton, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     window::Window,
     ContextBuilder, ContextWrapper, PossiblyCurrent,
@@ -32,6 +33,28 @@ pub trait ViewerController<C: HasContext> {
 
     /// Final cleanup call to remove all GL resources.
     fn cleanup(&mut self, context: &C);
+
+    /// Callback for logical cursor position
+    ///
+    ///* `x` - The x coordinate of the cursor in logical coordinates
+    ///* `y` - The y coordinate of the cursor in logical coordinates
+    fn cursor_move(&mut self, x: f64, y: f64);
+
+    /// Callback for pressed mouse button.
+    ///
+    ///* `x` - The x coordinate of the cursor in logical coordinates
+    ///* `y` - The y coordinate of the cursor in logical coordinates
+    ///* `button` - The pressed/released mouse button
+    ///* `pressed` - If true the mouse button was pressed and released otherwise.
+    fn mouse_button(&mut self, x: f64, y: f64, button: MouseButton, pressed: bool);
+
+    /// Is called when a key is either pressed or released.
+    ///
+    /// # Arguments
+    ///
+    /// * `virtual_key` - The key pressed or released.
+    /// * `pressed` - Determines if the key was pressed or released.
+    fn keyboard_event(&mut self, virtual_key: VirtualKeyCode, pressed: bool);
 }
 
 /// The 3D viewer component
@@ -68,6 +91,8 @@ impl<C: ViewerController<Context>> Viewer<C> {
             (gl, "#version 410", window, event_loop)
         };
 
+        let physical_size = window.window().inner_size();
+
         let viewer = Viewer {
             event_loop,
             window,
@@ -75,8 +100,8 @@ impl<C: ViewerController<Context>> Viewer<C> {
             controller,
             context_config: ContextConfig {
                 shader_version: shader_version.to_owned(),
-                width,
-                height,
+                width: physical_size.width,
+                height: physical_size.height,
             },
         };
 
@@ -92,6 +117,9 @@ impl<C: ViewerController<Context>> Viewer<C> {
         let gl = viewer.gl;
         let context_config = viewer.context_config;
         let mut controller = viewer.controller;
+
+        let scale_factor = window.window().scale_factor();
+        let mut cursor_pos: [f64; 2] = [0.0, 0.0];
 
         controller.initialize(&gl, context_config)?;
 
@@ -120,6 +148,31 @@ impl<C: ViewerController<Context>> Viewer<C> {
                     WindowEvent::CloseRequested => {
                         controller.cleanup(&gl);
                         *control_flow = ControlFlow::Exit
+                    }
+                    WindowEvent::CursorMoved { position, .. } => {
+                        let logical_position =
+                            LogicalPosition::from_physical(*position, scale_factor.clone());
+                        cursor_pos = [logical_position.x, logical_position.y];
+                        controller.cursor_move(logical_position.x, logical_position.y);
+                    }
+                    WindowEvent::MouseInput { state, button, .. } => {
+                        let x = cursor_pos[0];
+                        let y = cursor_pos[1];
+
+                        let pressed: bool = *state == ElementState::Pressed;
+
+                        controller.mouse_button(x, y, *button, pressed);
+                    }
+                    WindowEvent::KeyboardInput {
+                        device_id: _,
+                        input,
+                        is_synthetic: _,
+                    } => {
+                        let pressed = input.state == ElementState::Pressed;
+                        match input.virtual_keycode {
+                            Some(vk) => controller.keyboard_event(vk, pressed),
+                            None => {}
+                        }
                     }
                     _ => (),
                 },

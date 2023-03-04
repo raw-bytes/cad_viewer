@@ -18,6 +18,7 @@ uniform mat3 normalMat;
 //------------------------------------------
 
 out vec3 varNormal;
+out vec3 varPos;
 
 //------------------------------------------
 // CONSTANTS
@@ -30,6 +31,7 @@ void main() {
 
     // project 
     vec4 ppos = combinedMat * vec4(inPosition, 1.0);
+    varPos = vec3(ppos);
 
     // transform vertex position
     gl_Position = ppos;

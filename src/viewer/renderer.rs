@@ -1,20 +1,25 @@
 use crate::{gl_call, gpu_data::GPUData};
 
 use super::{
+    bbox::BBox,
+    camera::Camera,
     shader::Shader,
     viewer::{ContextConfig, ViewerController},
 };
 
-use cad_import::structure::CADData;
+use cad_import::structure::{CADData, Node};
 use glow::HasContext;
 
-use log::{debug, info, trace, warn};
-use nalgebra_glm::{determinant, inverse, mat4_to_mat3, perspective, transpose, Mat3, Mat4};
+use glutin::event::{MouseButton, VirtualKeyCode};
+use log::{debug, error, info, trace, warn};
+use nalgebra_glm::{determinant, inverse, mat4_to_mat3, transpose, vec4_to_vec3, Mat3, Mat4, Vec4};
 
 pub struct Renderer<C: HasContext> {
     shader: Option<Shader<C>>,
     shader_version: String,
     cad_data: CADData,
+    scene_volume: BBox,
+    camera: Camera,
     gpu_data: GPUData<C>,
     width: u32,
     height: u32,
@@ -23,11 +28,22 @@ pub struct Renderer<C: HasContext> {
 impl<C: HasContext> Renderer<C> {
     pub fn new(cad_data: CADData) -> Self {
         let gpu_data = GPUData::new();
+        let mut scene_volume = BBox::new();
+        Self::compute_bbox(
+            cad_data.get_root_node(),
+            Mat4::identity(),
+            &mut scene_volume,
+        );
+
+        let mut camera = Camera::new();
+        camera.focus(&scene_volume).unwrap();
 
         Self {
             shader: None,
             shader_version: String::new(),
-            cad_data: cad_data,
+            cad_data,
+            scene_volume,
+            camera,
             gpu_data,
             width: 0,
             height: 0,
@@ -42,6 +58,38 @@ impl<C: HasContext> Renderer<C> {
             m
         } else {
             transpose(&inverse(&m))
+        }
+    }
+
+    /// Computes the bounding volume for the given node and all its children recursively.
+    ///
+    /// # Arguments
+    /// * `node` - The node which defines the subtree for which the bounding volume will be computed.
+    /// * `transform` - The transformation to be applied
+    /// * `bbox` - Mutable reference for the bounding volume to be updated.
+    fn compute_bbox(node: &Node, transform: Mat4, bbox: &mut BBox) {
+        // update transformation
+        let transform = match node.get_transform() {
+            Some(t) => transform * t,
+            None => transform,
+        };
+
+        // compute bounding volume for all parts
+        for shape in node.get_shapes() {
+            for part in shape.get_parts() {
+                let mesh = part.get_mesh();
+                let positions = mesh.get_vertices().get_positions();
+
+                for p in positions.iter() {
+                    let p = vec4_to_vec3(&(transform * Vec4::new(p.0.x, p.0.y, p.0.z, 1f32)));
+                    bbox.extend_pos(&p);
+                }
+            }
+        }
+
+        // iterate over all children and update the global
+        for child in node.get_children() {
+            Self::compute_bbox(child, transform, bbox);
         }
     }
 }
@@ -93,9 +141,9 @@ impl<C: HasContext> ViewerController<C> for Renderer<C> {
             }
         };
 
-        let model_view_matrix = Mat4::identity();
-        let aspect: f32 = (self.width as f32) / (self.height as f32);
-        let projection_matrix = perspective(aspect, 1f32, 0.01f32, 100f32);
+        self.camera.update_window_size(self.width, self.height);
+        let model_view_matrix = self.camera.get_data().get_model_matrix();
+        let projection_matrix = self.camera.get_data().get_projection_matrix();
 
         let combined_mat = projection_matrix * model_view_matrix;
 
@@ -109,6 +157,9 @@ impl<C: HasContext> ViewerController<C> for Renderer<C> {
 
             for part in shape.parts.iter() {
                 shader.set_material(context, &part.material);
+
+                let normals_enabled = part.mesh.has_normals();
+                shader.set_attributes(context, normals_enabled);
 
                 part.mesh.draw(context);
             }
@@ -130,5 +181,28 @@ impl<C: HasContext> ViewerController<C> for Renderer<C> {
 
         self.width = width;
         self.height = height;
+    }
+
+    fn cursor_move(&mut self, x: f64, y: f64) {
+        self.camera.update_mouse_motion(x, y);
+    }
+
+    fn keyboard_event(&mut self, virtual_key: VirtualKeyCode, pressed: bool) {
+        match (virtual_key, pressed) {
+            (VirtualKeyCode::A, true) => {
+                info!("Show all");
+                match self.camera.focus(&self.scene_volume) {
+                    Err(err) => {
+                        error!("Failed to focus on scene due to {}", err);
+                    }
+                    _ => {}
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn mouse_button(&mut self, x: f64, y: f64, button: MouseButton, pressed: bool) {
+        self.camera.update_mouse_button(x, y, button, pressed);
     }
 }
