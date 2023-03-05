@@ -9,7 +9,7 @@ description = "A simple CAD viewer for visualizing 3D/CAD data based on the cad_
 documentation = "https://docs.rs/cad_viewer/"
 repository = "https://github.com/raw-bytes/cad_viewer"
 
-keywords = ["3D", "CAD", "import", "model", "scene", "viewer"]
+keywords = ["3D", "CAD", "import", "scene", "viewer"]
 categories = ["rendering"]
 
 edition = "2021"
