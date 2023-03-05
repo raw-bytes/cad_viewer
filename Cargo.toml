@@ -5,7 +5,7 @@ readme = "README.md"
 license = "MIT"
 authors = ["sraesch"]
 
-description = "A simple CAD viewer for visualizing 3D/CAD data based o the cad_import library."
+description = "A simple CAD viewer for visualizing 3D/CAD data based on the cad_import library."
 documentation = "https://docs.rs/cad_viewer/"
 repository = "https://github.com/raw-bytes/cad_viewer"
 
