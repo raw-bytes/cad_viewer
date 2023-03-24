@@ -124,6 +124,8 @@ impl<C: HasContext> GPUData<C> {
         let gpu_shape = Self::create_gpu_shape(context, shape)?;
         self.shapes.push(gpu_shape);
 
+        traversal_data.shape_map.insert(shape_id, index);
+
         Ok(index)
     }
 

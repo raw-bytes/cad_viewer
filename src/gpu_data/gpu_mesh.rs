@@ -1,5 +1,5 @@
 use anyhow::Result;
-use cad_import::structure::{Mesh, PrimitiveType, Vertices};
+use cad_import::structure::{IndexData, Mesh, PrimitiveType, Vertices};
 use glow::HasContext;
 
 use crate::{gl_call, viewer::gl_call::handle_glow_error};
@@ -21,7 +21,7 @@ pub struct GPUMesh<C: HasContext> {
 
     primitive_type: u32,
     num_indices: u32,
-    indices: IndexBuffer<C>,
+    indices: Option<IndexBuffer<C>>,
 }
 
 impl<C: HasContext> GPUMesh<C> {
@@ -33,17 +33,20 @@ impl<C: HasContext> GPUMesh<C> {
     pub fn new(context: &C, mesh: &Mesh) -> Result<Self> {
         let primitives = mesh.get_primitives();
         let primitive_type = Self::translate_primitive_type(primitives.get_primitive_type())?;
-        let num_indices = primitives.get_raw_index_data().len() as u32;
+        let num_indices = primitives.get_raw_index_data().num_indices() as u32;
 
         let vertices = mesh.get_vertices();
         let (vertices, vertex_array) = Self::create_vertex_data(context, vertices)?;
 
-        let indices = IndexBuffer::<C>::new(context)?;
-        indices.set_data(
-            context,
-            primitives.get_raw_index_data(),
-            super::buffer::Usage::Static,
-        );
+        let indices = match primitives.get_raw_index_data() {
+            IndexData::Indices(raw_indices) => {
+                let indices = IndexBuffer::<C>::new(context)?;
+                indices.set_data(context, raw_indices, super::buffer::Usage::Static);
+
+                Some(indices)
+            }
+            IndexData::NonIndexed(_) => None,
+        };
 
         Ok(Self {
             vertex_array,
@@ -57,15 +60,30 @@ impl<C: HasContext> GPUMesh<C> {
     /// Renders the whole GPU mesh.
     pub fn draw(&self, context: &C) {
         gl_call!(context, bind_vertex_array, Some(self.vertex_array));
-        self.indices.bind(context);
-        gl_call!(
-            context,
-            draw_elements,
-            self.primitive_type,
-            self.num_indices as i32,
-            glow::UNSIGNED_INT,
-            0
-        );
+
+        match &self.indices {
+            Some(indices) => {
+                indices.bind(context);
+                gl_call!(
+                    context,
+                    draw_elements,
+                    self.primitive_type,
+                    self.num_indices as i32,
+                    glow::UNSIGNED_INT,
+                    0
+                );
+            }
+            None => {
+                gl_call!(
+                    context,
+                    draw_arrays,
+                    self.primitive_type,
+                    0,
+                    self.num_indices as i32
+                );
+            }
+        }
+
         gl_call!(context, bind_vertex_array, None);
     }
 
@@ -162,12 +180,12 @@ impl<C: HasContext> GPUMesh<C> {
         // normals
         match &attributes.normal {
             Some(normals) => {
-                gl_call!(context, enable_vertex_attrib_array, 1);
                 normals.bind(context);
+                gl_call!(context, enable_vertex_attrib_array, 1);
                 gl_call!(
                     context,
                     vertex_attrib_pointer_f32,
-                    0,
+                    1,
                     3,
                     glow::FLOAT,
                     false,
