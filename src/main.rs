@@ -8,8 +8,8 @@ use viewer::Viewer;
 use crate::viewer::Renderer;
 
 mod args;
-mod viewer;
 mod gpu_data;
+mod viewer;
 
 /// Initializes the program logging
 fn initialize_logging() {
@@ -38,28 +38,47 @@ fn get_extension(file_path: &Path) -> Result<String> {
     }
 }
 
+/// Tries to find the mime types for the given file based on the file extension.
+///
+/// # Arguments
+/// * `input_file` - The input file whose extension will be used
+fn determine_mime_types(manager: &Manager, input_file: &Path) -> Result<Vec<String>> {
+    match input_file.extension() {
+        Some(ext) => match ext.to_str() {
+            Some(ext) => Ok(manager.get_mime_types_for_extension(ext)),
+            None => {
+                bail!("Input file has invalid extension");
+            }
+        },
+        None => {
+            bail!("Input file has no extension");
+        }
+    }
+}
+
 /// Tries to load the cad data from the given path
 ///
 /// # Arguments
 /// * `file_path` - The path to load the CAD data from.
 fn load_cad_data(file_path: &Path) -> Result<CADData> {
-    let ext = get_extension(file_path)?;
-
     let manager = Manager::new();
-    match manager.get_loader_by_extension(&ext) {
-        Some(loader) => {
-            let mut f = File::open(file_path)
-                .context(format!("Failed opening input file {:?}", file_path))?;
-            let cad_data = loader
-                .read_file(&mut f)
-                .context(format!("Failed reading input file {:?}", file_path))?;
 
-            Ok(cad_data)
-        }
-        None => {
-            bail!("Cannot find loader for the input file {:?}", file_path);
+    let mime_types = determine_mime_types(&manager, file_path)?;
+
+    for mime_type in mime_types.iter() {
+        match manager.get_loader_by_mime_type(mime_type.as_str()) {
+            Some(loader) => {
+                let cad_data = loader
+                    .read_file(file_path, mime_type)
+                    .context(format!("Failed reading input file {:?}", file_path))?;
+
+                return Ok(cad_data);
+            }
+            None => {}
         }
     }
+
+    bail!("Cannot find loader for the input file {:?}", file_path);
 }
 
 /// The central entry point for starting the program
