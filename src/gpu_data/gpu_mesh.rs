@@ -180,12 +180,12 @@ impl<C: HasContext> GPUMesh<C> {
         // normals
         match &attributes.normal {
             Some(normals) => {
-                gl_call!(context, enable_vertex_attrib_array, 1);
                 normals.bind(context);
+                gl_call!(context, enable_vertex_attrib_array, 1);
                 gl_call!(
                     context,
                     vertex_attrib_pointer_f32,
-                    0,
+                    1,
                     3,
                     glow::FLOAT,
                     false,
