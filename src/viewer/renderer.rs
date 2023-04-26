@@ -203,6 +203,10 @@ impl<C: HasContext> ViewerController<C> for Renderer<C> {
                     _ => {}
                 }
             }
+            (VirtualKeyCode::C, true) => {
+                info!("Export Camera...");
+                println!("{}", self.camera.get_data().to_string());
+            }
             _ => {}
         }
     }

@@ -3,6 +3,7 @@ use nalgebra_glm::{
     column, determinant, dot, inverse_transpose, mat3_to_mat4, mat4_to_mat3, normalize,
     perspective, translation, transpose, Mat3, Mat4, Vec3, Vec4,
 };
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy)]
 pub struct CameraData {
@@ -13,6 +14,24 @@ pub struct CameraData {
 
     scene_center: Vec3,
     scene_radius: f32,
+}
+
+impl ToString for CameraData {
+    fn to_string(&self) -> String {
+        let center = [self.center[0], self.center[1], self.center[2]];
+
+        let cam_axis: [f32; 9] = self.cam_axis.as_slice().try_into().unwrap();
+
+        let s = SerializedCameraData {
+            radius: self.radius,
+            center,
+            cam_axis,
+        };
+
+        let result = serde_json::to_string(&s).unwrap();
+
+        result
+    }
 }
 
 impl CameraData {
@@ -29,6 +48,17 @@ impl CameraData {
             scene_center: Vec3::new(0f32, 0f32, 0f32),
             scene_radius: 10f32,
         }
+    }
+
+    /// Sets the camera data by parsing the given string that is in a JSON format.
+    pub fn set_from_string(&mut self, s: &str) -> anyhow::Result<()> {
+        let s: SerializedCameraData = serde_json::from_str(s)?;
+
+        self.radius = s.radius;
+        self.center.copy_from_slice(&s.center);
+        self.cam_axis.copy_from_slice(&s.cam_axis);
+
+        Ok(())
     }
 
     /// Returns the model view matrix for the camera.
@@ -131,6 +161,10 @@ impl CameraData {
         self.center = center.clone();
     }
 
+    pub fn set_cam_axis(&mut self, cam_axis: Mat3) {
+        self.cam_axis = cam_axis;
+    }
+
     pub fn set_rotated_cam_axis(&mut self, axis: &Mat3, rot_mat: &Mat3) {
         // rotate x axis
         let c0: Vec3 = normalize(&((*rot_mat) * column(axis, 0)));
@@ -149,5 +183,44 @@ impl CameraData {
         c2 = normalize(&c2);
 
         self.cam_axis = Mat3::from_columns(&[c0, c1, c2]);
+    }
+}
+
+/// Struct for serializing the camera data
+#[derive(Serialize, Deserialize)]
+struct SerializedCameraData {
+    pub center: [f32; 3],
+    pub cam_axis: [f32; 9],
+    pub radius: f32,
+}
+
+#[cfg(test)]
+mod test {
+    use nalgebra_glm::{Mat3, Vec3};
+
+    use super::CameraData;
+
+    #[test]
+    fn test_serialization() {
+        let mut cam_data = CameraData::new();
+        cam_data.set_center(&Vec3::new(1f32, 2f32, 3f32));
+
+        let r = Mat3::from_columns(&[
+            Vec3::new(0f32, 0f32, 1f32),
+            Vec3::new(1f32, 0f32, 0f32),
+            Vec3::new(1f32, 0f32, 0f32),
+        ]);
+
+        cam_data.set_cam_axis(r);
+        cam_data.set_radius(42f32);
+
+        let s: String = cam_data.to_string();
+
+        let mut cam_data2 = CameraData::new();
+        cam_data2.set_from_string(&s).unwrap();
+
+        assert_eq!(cam_data2.get_radius(), 42f32);
+        assert_eq!(*cam_data2.get_center(), Vec3::new(1f32, 2f32, 3f32));
+        assert_eq!(*cam_data2.get_axis(), r);
     }
 }
