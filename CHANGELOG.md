@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unpublished
 
+### Changed
+- Added JSON serialization for the camera data
+
 ## [0.2.0]
 
 ### Changed
