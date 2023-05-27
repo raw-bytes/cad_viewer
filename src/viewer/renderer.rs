@@ -203,6 +203,18 @@ impl<C: HasContext> ViewerController<C> for Renderer<C> {
                     _ => {}
                 }
             }
+            (VirtualKeyCode::C, true) => {
+                info!("Export Camera...");
+
+                let cam_data = self.camera.get_data();
+                println!("{}", cam_data.to_string());
+
+                let model_matrix = cam_data.get_model_matrix();
+                let proj_matrix = cam_data.get_projection_matrix();
+
+                println!("\"model_view_matrix\":\n{:?}", model_matrix.as_slice());
+                println!("\"projection_matrix\":\n{:?}", proj_matrix.as_slice());
+            }
             _ => {}
         }
     }
